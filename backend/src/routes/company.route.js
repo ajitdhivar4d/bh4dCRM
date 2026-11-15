@@ -12,6 +12,8 @@ import {
   updateEmployeeStatus,
   updateAttendanceSettings,
   getAttendanceSettings,
+  getCompanyInvitations,
+  regenerateInvitationLink,
 } from "../controllers/company.controller.js";
 
 import { protect, companyOwnerOnly } from "../middleware/auth.middleware.js";
@@ -61,6 +63,17 @@ router.put(
   protect,
   companyOwnerOnly,
   updateAttendanceSettings,
+);
+
+// Get company invitations
+router.get("/invitations", protect, companyOwnerOnly, getCompanyInvitations);
+
+// Regenerate invitation link
+router.post(
+  "/invitations/:id/regenerate",
+  protect,
+  companyOwnerOnly,
+  regenerateInvitationLink,
 );
 
 export default router;

@@ -359,6 +359,131 @@ export const inviteEmployee = async (req, res) => {
   }
 };
 
+// GET: Get company invitations
+export const getCompanyInvitations = async (req, res) => {
+  try {
+    const invitations = await EmployeeInvitation.find({
+      company: req.user.company,
+      acceptedAt: null,
+      revokedAt: null,
+    })
+      .select("employeeName email expiresAt createdAt")
+      .sort({ createdAt: -1 });
+
+    const now = new Date();
+
+    const formattedInvitations = invitations.map((invitation) => ({
+      id: invitation._id,
+      employeeName: invitation.employeeName,
+      email: invitation.email,
+      expiresAt: invitation.expiresAt,
+      createdAt: invitation.createdAt,
+      status: invitation.expiresAt > now ? "pending" : "expired",
+    }));
+
+    return res.status(200).json({
+      success: true,
+      count: formattedInvitations.length,
+      invitations: formattedInvitations,
+    });
+  } catch (error) {
+    console.error("Get company invitations error:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch company invitations",
+    });
+  }
+};
+
+// POST: Regenerate employee invitation link
+export const regenerateInvitationLink = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    if (!mongoose.isValidObjectId(id)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid invitation ID",
+      });
+    }
+
+    // Verify company ownership
+    if (
+      !req.company ||
+      req.company.owner.toString() !== req.user._id.toString()
+    ) {
+      return res.status(403).json({
+        success: false,
+        message: "You are not authorized to regenerate this invitation",
+      });
+    }
+
+    // Generate a new secure token
+    const invitationToken = crypto.randomBytes(32).toString("hex");
+
+    const tokenHash = crypto
+      .createHash("sha256")
+      .update(invitationToken)
+      .digest("hex");
+
+    // New expiry: 24 hours
+    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+
+    // Update only an unused, non-revoked invitation belonging to this company.
+    // Expired invitations can also be regenerated.
+    const invitation = await EmployeeInvitation.findOneAndUpdate(
+      {
+        _id: id,
+        company: req.user.company,
+        acceptedAt: null,
+        revokedAt: null,
+      },
+      {
+        $set: {
+          tokenHash,
+          expiresAt,
+        },
+      },
+      {
+        returnDocument: "after",
+      },
+    );
+
+    if (!invitation) {
+      return res.status(404).json({
+        success: false,
+        message: "Invitation not found or already accepted/revoked",
+      });
+    }
+
+    const frontendUrl = (
+      process.env.FRONTEND_URL || "http://localhost:5173"
+    ).replace(/\/$/, "");
+
+    const invitationLink = `${frontendUrl}/accept-invitation?token=${invitationToken}`;
+
+    return res.status(200).json({
+      success: true,
+      message: "Invitation link regenerated successfully",
+      invitation: {
+        id: invitation._id,
+        employeeName: invitation.employeeName,
+        email: invitation.email,
+        expiresAt: invitation.expiresAt,
+      },
+      invitationLink,
+    });
+  } catch (error) {
+    console.error("Regenerate invitation error:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to regenerate invitation link",
+    });
+  }
+};
+
 // GET: Verify employee invitation
 export const verifyInvitation = async (req, res) => {
   try {
