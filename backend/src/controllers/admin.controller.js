@@ -25,9 +25,6 @@ export const getPendingCompanies = async (req, res) => {
   }
 };
 
-// router.patch("/companies/:companyId/status",
-//localhost:5000/api/admin/companies/COMPANY_ID/status
-// Activate or deactivate a company
 export const updateCompanyStatus = async (req, res) => {
   try {
     const { companyId } = req.params;
@@ -81,6 +78,65 @@ export const updateCompanyStatus = async (req, res) => {
     return res.status(500).json({
       success: false,
       message: "Unable to update company status",
+    });
+  }
+};
+
+// Get Super Admin Dashboard Statistics
+export const getDashboardStats = async (req, res) => {
+  try {
+    const [
+      totalCompanies,
+      activeCompanies,
+      pendingCompanies,
+      suspendedCompanies,
+      rejectedCompanies,
+    ] = await Promise.all([
+      Company.countDocuments(),
+      Company.countDocuments({ status: "active" }),
+      Company.countDocuments({ status: "pending" }),
+      Company.countDocuments({ status: "suspended" }),
+      Company.countDocuments({ status: "rejected" }),
+    ]);
+
+    return res.status(200).json({
+      success: true,
+      stats: {
+        totalCompanies,
+        activeCompanies,
+        pendingCompanies,
+        suspendedCompanies,
+        rejectedCompanies,
+      },
+    });
+  } catch (error) {
+    console.error("Dashboard statistics error:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Unable to fetch dashboard statistics",
+    });
+  }
+};
+
+// Get all registered companies
+export const getAllCompanies = async (req, res) => {
+  try {
+    const companies = await Company.find()
+      .populate("owner", "name email")
+      .sort({ createdAt: -1 });
+
+    return res.status(200).json({
+      success: true,
+      count: companies.length,
+      companies,
+    });
+  } catch (error) {
+    console.error("Get all companies error:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Unable to fetch companies",
     });
   }
 };
