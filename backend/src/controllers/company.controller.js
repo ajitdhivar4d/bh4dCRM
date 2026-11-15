@@ -330,8 +330,15 @@ export const inviteEmployee = async (req, res) => {
       expiresAt,
     });
 
-    // 8. Return invitation details
-    const response = {
+    // 8. Generate invitation link
+    const frontendUrl = (
+      process.env.FRONTEND_URL || "http://localhost:5173"
+    ).replace(/\/$/, "");
+
+    const invitationLink = `${frontendUrl}/accept-invitation?token=${invitationToken}`;
+
+    // 9. Return invitation details
+    return res.status(201).json({
       success: true,
       message: "Employee invitation created successfully",
       invitation: {
@@ -340,16 +347,8 @@ export const inviteEmployee = async (req, res) => {
         email: invitation.email,
         expiresAt: invitation.expiresAt,
       },
-    };
-
-    // Show the invitation link only during development.
-    if (process.env.NODE_ENV !== "production") {
-      const frontendUrl = process.env.FRONTEND_URL || "http://localhost:5173";
-
-      response.invitationLink = `${frontendUrl}/accept-invitation?token=${invitationToken}`;
-    }
-
-    return res.status(201).json(response);
+      invitationLink,
+    });
   } catch (error) {
     console.error("Employee invitation error:", error);
 
@@ -773,8 +772,6 @@ export const updateEmployeeStatus = async (req, res) => {
   }
 };
 
-
-
 // GET: Get Company Attendance Settings
 export const getAttendanceSettings = async (req, res) => {
   try {
@@ -811,8 +808,6 @@ export const getAttendanceSettings = async (req, res) => {
     });
   }
 };
-
-
 
 // PUT: Update Company Attendance Settings
 export const updateAttendanceSettings = async (req, res) => {
@@ -857,8 +852,7 @@ export const updateAttendanceSettings = async (req, res) => {
 
     if (
       officeStartTime !== undefined &&
-      (typeof officeStartTime !== "string" ||
-        !timeRegex.test(officeStartTime))
+      (typeof officeStartTime !== "string" || !timeRegex.test(officeStartTime))
     ) {
       return res.status(400).json({
         success: false,
@@ -868,8 +862,7 @@ export const updateAttendanceSettings = async (req, res) => {
 
     if (
       officeEndTime !== undefined &&
-      (typeof officeEndTime !== "string" ||
-        !timeRegex.test(officeEndTime))
+      (typeof officeEndTime !== "string" || !timeRegex.test(officeEndTime))
     ) {
       return res.status(400).json({
         success: false,
@@ -888,10 +881,7 @@ export const updateAttendanceSettings = async (req, res) => {
     };
 
     for (const [field, value] of Object.entries(numericUpdates)) {
-      if (
-        value !== undefined &&
-        (!Number.isSafeInteger(value) || value < 0)
-      ) {
+      if (value !== undefined && (!Number.isSafeInteger(value) || value < 0)) {
         return res.status(400).json({
           success: false,
           message: `Invalid value for ${field}`,
@@ -916,10 +906,7 @@ export const updateAttendanceSettings = async (req, res) => {
 
       newLocation = officeLocation;
     } else if (latitude !== undefined || longitude !== undefined) {
-      if (
-        typeof latitude !== "number" ||
-        typeof longitude !== "number"
-      ) {
+      if (typeof latitude !== "number" || typeof longitude !== "number") {
         return res.status(400).json({
           success: false,
           message: "Latitude and longitude must be provided together",
@@ -949,12 +936,9 @@ export const updateAttendanceSettings = async (req, res) => {
       lunchBreakMinutes: lunchBreakMinutes ?? settings.lunchBreakMinutes,
       requiredWorkingMinutes:
         requiredWorkingMinutes ?? settings.requiredWorkingMinutes,
-      gracePeriodMinutes:
-        gracePeriodMinutes ?? settings.gracePeriodMinutes,
-      absentBelowMinutes:
-        absentBelowMinutes ?? settings.absentBelowMinutes,
-      halfDayBelowMinutes:
-        halfDayBelowMinutes ?? settings.halfDayBelowMinutes,
+      gracePeriodMinutes: gracePeriodMinutes ?? settings.gracePeriodMinutes,
+      absentBelowMinutes: absentBelowMinutes ?? settings.absentBelowMinutes,
+      halfDayBelowMinutes: halfDayBelowMinutes ?? settings.halfDayBelowMinutes,
       allowedRadius: allowedRadius ?? settings.allowedRadius,
     };
 

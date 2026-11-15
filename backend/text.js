@@ -1,13 +1,13 @@
 // Register Company
-{
-  // "name": "Ajit Dhivar",
-  // "email": "ajit@example.com",
-  // "password": "Ajit@123456",
-  // "companyName": "ABC Technologies",
-  // "companyEmail": "contact@abc.com",
-  // "companyPhone": "9876543210",
-  // "address": "Jaipur, Rajasthan"
-}
+// {
+//    name: Ajit Dhivar,
+//    email: ajit@example.com,
+//    password: Ajit@123456,
+//    companyName: ABC Technologies,
+//    companyEmail: contact@abc.com,
+//    companyPhone: 9876543210,
+//    address: Jaipur, Rajasthan
+// }
 
 // Super admin  login
 // {
@@ -23,9 +23,9 @@
 
 //Employee login1
 // {
-//   "employeeName": "Rahul Sharma1",
+//   "employeeName": "Rahul Sharma",
 //   "email": "rahul@example.com"
-//    "password":"Ajit7740"
+//    "password":"rahul7740"
 // }
 //Employee login 2
 // {
