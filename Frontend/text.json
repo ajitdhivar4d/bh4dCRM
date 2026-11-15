@@ -1,0 +1,21 @@
+[
+  {
+    "name": "Ajit Dhivar",
+    "email": "ajit@example.com",
+    "password": "Ajit@123456",
+    "companyName": "ABC Technologies",
+    "companyEmail": "contact@abc.com",
+    "companyPhone": "9876543210",
+    "address": "Jaipur, Rajasthan"
+  },
+
+  {
+    "name": "John Doe",
+    "email": "johndoe@example.com",
+    "password": "John@123456",
+    "companyName": "XYZ Enterprises",
+    "companyEmail": "contact@xyz.com",
+    "companyPhone": "1234567890",
+    "address": "New York, USA"
+  }
+]
