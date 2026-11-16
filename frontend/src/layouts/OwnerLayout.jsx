@@ -14,12 +14,13 @@ import {
   UserRound,
   ClipboardList,
   CalendarClock,
+  ArrowLeft,
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import API from "../api/api";
 
 const OwnerLayout = () => {
-  const { user, logout } = useAuth();
+  const { user, logout, isImpersonating, exitCompanyWorkspace } = useAuth();
   const navigate = useNavigate();
 
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -98,6 +99,16 @@ const OwnerLayout = () => {
       icon: ClipboardList,
     },
   ];
+
+  const handleBackToAdmin = () => {
+    const restored = exitCompanyWorkspace();
+
+    if (restored) {
+      navigate("/admin/companies", { replace: true });
+    } else {
+      navigate("/login", { replace: true });
+    }
+  };
 
   const handleLogout = () => {
     logout();
@@ -238,8 +249,19 @@ const OwnerLayout = () => {
           })}
         </nav>
 
-        {/* Logout */}
+        {/* Admin Access and Logout */}
         <div className="border-t border-slate-700 p-4">
+          {isImpersonating && (
+            <button
+              type="button"
+              onClick={handleBackToAdmin}
+              className="mb-2 flex min-h-12 w-full items-center gap-3 rounded-xl px-4 py-3 text-sm font-semibold text-blue-300 transition hover:bg-slate-800 hover:text-blue-200"
+            >
+              <ArrowLeft size={20} />
+              Back to Super Admin
+            </button>
+          )}
+
           <button
             type="button"
             onClick={handleLogout}

@@ -1,5 +1,6 @@
 import mongoose from "mongoose";
 import bcrypt from "bcryptjs";
+import jwt from "jsonwebtoken";
 
 import User from "../models/User.js";
 import Company from "../models/Company.js";
@@ -1160,6 +1161,84 @@ export const updateAttendanceSettings = async (req, res) => {
     return res.status(500).json({
       success: false,
       message: "Failed to update attendance settings",
+    });
+  }
+};
+
+// POST: Super Admin accesses an employee workspace
+export const accessEmployeeWorkspace = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    if (!mongoose.isValidObjectId(id)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid employee ID",
+      });
+    }
+
+    // Only Super Admin impersonating this company's Owner
+    if (
+      req.user?.role !== "company_owner" ||
+      req.actor?.role !== "super_admin" ||
+      !req.company ||
+      req.company.owner.toString() !== req.user._id.toString()
+    ) {
+      return res.status(403).json({
+        success: false,
+        message: "Super Admin access required",
+      });
+    }
+
+    // Find active employee in the same company
+    const employee = await User.findOne({
+      _id: id,
+      company: req.company._id,
+      role: "employee",
+      status: "active",
+    });
+
+    if (!employee) {
+      return res.status(404).json({
+        success: false,
+        message: "Active employee not found",
+      });
+    }
+
+    if (!process.env.JWT_SECRET) {
+      throw new Error("JWT_SECRET is not configured");
+    }
+
+    const token = jwt.sign(
+      {
+        userId: employee._id.toString(),
+        role: "employee",
+        companyId: req.company._id.toString(),
+        impersonatedBy: req.actor._id.toString(),
+        impersonatedOwnerId: req.user._id.toString(),
+      },
+      process.env.JWT_SECRET,
+      { expiresIn: "1h" },
+    );
+
+    return res.status(200).json({
+      success: true,
+      message: "Employee workspace access granted",
+      token,
+      user: {
+        id: employee._id,
+        name: employee.name,
+        email: employee.email,
+        role: employee.role,
+        company: req.company._id,
+      },
+    });
+  } catch (error) {
+    console.error("Access employee workspace error:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Unable to access employee workspace",
     });
   }
 };

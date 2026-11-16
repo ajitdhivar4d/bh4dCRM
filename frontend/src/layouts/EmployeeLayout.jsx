@@ -11,11 +11,14 @@ import {
   Menu,
   X,
   CalendarClock,
+  ArrowLeft,
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 
 const EmployeeLayout = () => {
-  const { user, logout } = useAuth();
+  const { user, logout, isEmployeeImpersonating, exitEmployeeWorkspace } =
+    useAuth();
+
   const navigate = useNavigate();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
@@ -78,6 +81,15 @@ const EmployeeLayout = () => {
   const handleLogout = () => {
     logout();
     navigate("/login");
+  };
+
+  // Return to Company Owner workspace
+  const handleBackToOwner = () => {
+    const success = exitEmployeeWorkspace();
+
+    if (success) {
+      navigate("/owner/employees");
+    }
   };
 
   const closeMobileMenu = () => {
@@ -152,6 +164,19 @@ const EmployeeLayout = () => {
             </p>
           </div>
 
+          {/* Back to Company Owner - Super Admin only */}
+          {isEmployeeImpersonating && (
+            <button
+              type="button"
+              onClick={handleBackToOwner}
+              className="mb-2 flex w-full items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium text-purple-400 transition hover:bg-gray-800"
+            >
+              <ArrowLeft size={19} />
+              Back to Company Owner
+            </button>
+          )}
+
+          {/* Logout */}
           <button
             type="button"
             onClick={handleLogout}
@@ -165,8 +190,6 @@ const EmployeeLayout = () => {
 
       {/* Main content */}
       <div className="flex min-w-0 flex-1 flex-col">
-        {/* Mobile header */}
-
         {/* Mobile bottom navigation */}
         <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-gray-200 bg-white/95 px-2 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] shadow-[0_-4px_20px_rgba(15,23,42,0.06)] backdrop-blur lg:hidden">
           <div className="mx-auto grid max-w-lg grid-cols-4">
@@ -214,7 +237,7 @@ const EmployeeLayout = () => {
         </nav>
 
         {/* Page content */}
-        <main className="flex-1 overflow-x-hidden p-4 sm:p-6 lg:p-8">
+        <main className="flex-1 overflow-x-hidden p-4 pb-24 sm:p-6 lg:p-8 lg:pb-8">
           <Outlet />
         </main>
       </div>

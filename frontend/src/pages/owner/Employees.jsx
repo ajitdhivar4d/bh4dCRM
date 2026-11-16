@@ -1,4 +1,6 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "../../context/AuthContext";
 import {
   Users,
   Search,
@@ -12,6 +14,10 @@ import {
 import API from "../../api/api";
 
 const Employees = () => {
+  const navigate = useNavigate();
+
+  const { isImpersonating, enterEmployeeWorkspace } = useAuth();
+
   const [employees, setEmployees] = useState([]);
   const [search, setSearch] = useState("");
 
@@ -72,6 +78,36 @@ const Employees = () => {
       );
     } finally {
       setDetailsLoading(false);
+    }
+  };
+
+  // Super Admin: Access employee workspace
+  const handleViewAsEmployee = async (employee) => {
+    try {
+      setUpdatingId(employee._id);
+      setError("");
+
+      const response = await API.post(
+        `/company/employees/${employee._id}/access`,
+      );
+
+      const { token, user } = response.data;
+
+      const success = enterEmployeeWorkspace(user, token);
+
+      if (!success) {
+        throw new Error("Unable to access employee workspace.");
+      }
+
+      navigate("/employee/dashboard");
+    } catch (err) {
+      setError(
+        err.response?.data?.message ||
+          err.message ||
+          "Unable to access employee workspace.",
+      );
+    } finally {
+      setUpdatingId(null);
     }
   };
 
@@ -239,6 +275,19 @@ const Employees = () => {
 
                     <td className="p-4">
                       <div className="flex items-center gap-2">
+                        {isImpersonating && employee.status === "active" && (
+                          <button
+                            type="button"
+                            onClick={() => handleViewAsEmployee(employee)}
+                            disabled={updatingId === employee._id}
+                            title="View as employee"
+                            className="rounded-lg bg-purple-100 px-3 py-2 text-xs font-semibold text-purple-700 hover:bg-purple-200 disabled:opacity-50"
+                          >
+                            {updatingId === employee._id
+                              ? "Opening..."
+                              : "Access"}
+                          </button>
+                        )}
                         <button
                           onClick={() => handleView(employee._id)}
                           title="View employee"

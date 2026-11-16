@@ -1,6 +1,7 @@
 import express from "express";
 
 import {
+  accessCompanyWorkspace,
   getAllCompanies,
   getDashboardStats,
   getPendingCompanies,
@@ -25,5 +26,8 @@ router.get("/dashboard", getDashboardStats);
 
 // Get all registered companies
 router.get("/companies", getAllCompanies);
+
+// Access an active company's Owner workspace
+router.post("/companies/:companyId/access", accessCompanyWorkspace);
 
 export default router;

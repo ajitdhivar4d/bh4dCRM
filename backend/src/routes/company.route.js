@@ -14,6 +14,7 @@ import {
   getAttendanceSettings,
   getCompanyInvitations,
   regenerateInvitationLink,
+  accessEmployeeWorkspace,
 } from "../controllers/company.controller.js";
 
 import { protect, companyOwnerOnly } from "../middleware/auth.middleware.js";
@@ -74,6 +75,14 @@ router.post(
   protect,
   companyOwnerOnly,
   regenerateInvitationLink,
+);
+
+// Super Admin accesses employee workspace
+router.post(
+  "/employees/:id/access",
+  protect,
+  companyOwnerOnly,
+  accessEmployeeWorkspace,
 );
 
 export default router;

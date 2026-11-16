@@ -10,9 +10,12 @@ import {
   Search,
   Filter,
   XCircle,
+  Eye,
   CalendarDays,
 } from "lucide-react";
 import API from "../../api/api";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "../../context/AuthContext";
 
 const statusStyles = {
   active: "bg-emerald-50 text-emerald-700",
@@ -29,6 +32,12 @@ const statusIcons = {
 };
 
 const Companies = () => {
+  const navigate = useNavigate();
+
+  const { enterCompanyWorkspace } = useAuth();
+
+  const [accessingId, setAccessingId] = useState(null);
+
   const [companies, setCompanies] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -50,6 +59,36 @@ const Companies = () => {
       setError(err.response?.data?.message || "Failed to fetch companies.");
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Access company Owner workspace
+  const handleViewCompany = async (company) => {
+    try {
+      setAccessingId(company._id);
+      setError("");
+
+      const response = await API.post(
+        `/superAdmin/companies/${company._id}/access`,
+      );
+
+      const { token, user } = response.data;
+
+      const success = enterCompanyWorkspace(user, token);
+
+      if (!success) {
+        throw new Error("Unable to switch to company workspace.");
+      }
+
+      navigate("/owner/dashboard");
+    } catch (err) {
+      setError(
+        err.response?.data?.message ||
+          err.message ||
+          "Unable to access company workspace.",
+      );
+    } finally {
+      setAccessingId(null);
     }
   };
 
@@ -397,6 +436,20 @@ const Companies = () => {
                     </div>
                   </div>
 
+                  {company.status === "active" && (
+                    <button
+                      type="button"
+                      onClick={() => handleViewCompany(company)}
+                      disabled={accessingId === company._id}
+                      className="mb-3 inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700"
+                    >
+                      <Eye size={16} />
+                      {accessingId === company._id
+                        ? "Opening..."
+                        : "View Company"}
+                    </button>
+                  )}
+
                   <ActionButton company={company} />
                 </article>
               ))}
@@ -453,7 +506,21 @@ const Companies = () => {
                       </td>
 
                       <td className="px-6 py-5 text-right">
-                        <div className="flex justify-end">
+                        <div className="flex justify-end gap-2">
+                          {company.status === "active" && (
+                            <button
+                              type="button"
+                              onClick={() => handleViewCompany(company)}
+                              disabled={accessingId === company._id}
+                              className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+                            >
+                              <Eye size={16} />
+                              {accessingId === company._id
+                                ? "Opening..."
+                                : "View"}
+                            </button>
+                          )}
+
                           <ActionButton company={company} />
                         </div>
                       </td>
