@@ -21,6 +21,9 @@ const AttendanceSettings = () => {
   const [loading, setLoading] = useState(false);
   const [locationLoading, setLocationLoading] = useState(false);
 
+  const [weeklyOffDays, setWeeklyOffDays] = useState(["Sunday"]);
+  const [weeklyOffLoading, setWeeklyOffLoading] = useState(false);
+
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
 
@@ -52,6 +55,9 @@ const AttendanceSettings = () => {
         const response = await API.get("/company/attendance-settings");
 
         setFormData(formatSettings(response.data.attendanceSettings));
+        setWeeklyOffDays(
+          response.data.attendanceSettings?.weeklyOffDays ?? ["Sunday"],
+        );
       } catch (err) {
         setError(
           err.response?.data?.message || "Failed to load attendance settings.",
@@ -72,6 +78,37 @@ const AttendanceSettings = () => {
       ...prev,
       [name]: value,
     }));
+  };
+
+  const handleToggleWeeklyOff = async (day) => {
+    if (weeklyOffLoading) return;
+
+    setError("");
+    setMessage("");
+    setWeeklyOffLoading(true);
+
+    const nextDays = weeklyOffDays.includes(day)
+      ? weeklyOffDays.filter((item) => item !== day)
+      : [...weeklyOffDays, day];
+
+    try {
+      const response = await API.put("/company/attendance-settings", {
+        weeklyOffDays: nextDays,
+      });
+
+      setWeeklyOffDays(
+        response.data.attendanceSettings?.weeklyOffDays ?? nextDays,
+      );
+
+      setMessage("Weekly off settings updated successfully.");
+    } catch (error) {
+      setError(
+        error.response?.data?.message ||
+          "Failed to update weekly off settings.",
+      );
+    } finally {
+      setWeeklyOffLoading(false);
+    }
   };
 
   // Get current browser location
@@ -354,6 +391,60 @@ const AttendanceSettings = () => {
             </div>
           </div>
         </section>
+
+        {/* Weekly Off Days */}
+        <div className="rounded-xl border border-gray-200 bg-white p-6">
+          <h2 className="text-lg font-semibold text-gray-800">
+            Weekly Off Days
+          </h2>
+
+          <p className="mt-1 text-sm text-gray-500">
+            Click a day to mark it as a weekly holiday or working day. Changes
+            are saved automatically.
+          </p>
+
+          <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
+            {[
+              "Monday",
+              "Tuesday",
+              "Wednesday",
+              "Thursday",
+              "Friday",
+              "Saturday",
+              "Sunday",
+            ].map((day) => {
+              const isOff = weeklyOffDays.includes(day);
+
+              return (
+                <button
+                  key={day}
+                  type="button"
+                  disabled={weeklyOffLoading}
+                  onClick={() => handleToggleWeeklyOff(day)}
+                  className={`rounded-lg border px-4 py-3 text-sm font-medium transition ${
+                    isOff
+                      ? "border-blue-300 bg-blue-50 text-blue-700"
+                      : "border-gray-200 bg-gray-50 text-gray-700 hover:bg-gray-100"
+                  } ${
+                    weeklyOffLoading
+                      ? "cursor-not-allowed opacity-60"
+                      : "cursor-pointer"
+                  }`}
+                >
+                  {day}
+                  <span className="mt-1 block text-xs">
+                    {isOff ? "Weekly Off" : "Working Day"}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+
+          <p className="mt-4 text-xs text-gray-500">
+            Selected weekly off days:{" "}
+            {weeklyOffDays.length > 0 ? weeklyOffDays.join(", ") : "None"}
+          </p>
+        </div>
 
         {/* Break and Working Time */}
         <section className="space-y-5 rounded-xl border border-gray-200 bg-white p-6 shadow-sm">

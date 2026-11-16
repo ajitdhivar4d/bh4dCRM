@@ -45,8 +45,9 @@ const companySchema = new mongoose.Schema(
       enum: ["pending", "active", "rejected", "suspended"],
       default: "pending",
     },
+
     attendanceSettings: {
-      // Existing GPS settings
+      // GPS settings
       officeLocation: {
         latitude: {
           type: Number,
@@ -74,6 +75,25 @@ const companySchema = new mongoose.Schema(
         default: "18:00",
       },
 
+      // Weekly Off Settings
+      weeklyOffDays: {
+        type: [
+          {
+            type: String,
+            enum: [
+              "Monday",
+              "Tuesday",
+              "Wednesday",
+              "Thursday",
+              "Friday",
+              "Saturday",
+              "Sunday",
+            ],
+          },
+        ],
+        default: ["Sunday"],
+      },
+
       // Break settings
       lunchBreakMinutes: {
         type: Number,
@@ -84,7 +104,7 @@ const companySchema = new mongoose.Schema(
       // Attendance rules
       requiredWorkingMinutes: {
         type: Number,
-        default: 420, // 7 hours
+        default: 420,
         min: 1,
       },
 
@@ -96,13 +116,13 @@ const companySchema = new mongoose.Schema(
 
       absentBelowMinutes: {
         type: Number,
-        default: 180, // Less than 3 hours
+        default: 180,
         min: 0,
       },
 
       halfDayBelowMinutes: {
         type: Number,
-        default: 360, // Less than 6 hours
+        default: 360,
         min: 1,
       },
     },

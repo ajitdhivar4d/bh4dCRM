@@ -970,7 +970,32 @@ export const updateAttendanceSettings = async (req, res) => {
       gracePeriodMinutes,
       absentBelowMinutes,
       halfDayBelowMinutes,
+      weeklyOffDays,
     } = req.body;
+
+    // Validate weekly off days
+    const validWeekDays = [
+      "Monday",
+      "Tuesday",
+      "Wednesday",
+      "Thursday",
+      "Friday",
+      "Saturday",
+      "Sunday",
+    ];
+
+    if (weeklyOffDays !== undefined) {
+      if (
+        !Array.isArray(weeklyOffDays) ||
+        !weeklyOffDays.every((day) => validWeekDays.includes(day)) ||
+        new Set(weeklyOffDays).size !== weeklyOffDays.length
+      ) {
+        return res.status(400).json({
+          success: false,
+          message: "Please provide valid weekly off days.",
+        });
+      }
+    }
 
     // 1. Validate office timings
     const timeRegex = /^([01]\d|2[0-3]):([0-5]\d)$/;
@@ -1115,6 +1140,11 @@ export const updateAttendanceSettings = async (req, res) => {
 
     if (newLocation) {
       settings.officeLocation = newLocation;
+    }
+
+    // Update weekly off days
+    if (weeklyOffDays !== undefined) {
+      settings.weeklyOffDays = weeklyOffDays;
     }
 
     await company.save();

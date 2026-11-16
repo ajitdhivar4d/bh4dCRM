@@ -4,6 +4,7 @@ import {
   LayoutDashboard,
   Users,
   CalendarCheck,
+  CalendarRange,
   Settings,
   LogOut,
   Menu,
@@ -53,6 +54,12 @@ const OwnerLayout = () => {
       shortName: "Attendance",
       path: "/owner/attendance",
       icon: CalendarCheck,
+    },
+    {
+      name: "Monthly Attendance",
+      shortName: "Monthly Report",
+      path: "/owner/monthly-attendance",
+      icon: CalendarRange,
     },
     {
       name: "Invite Employee",

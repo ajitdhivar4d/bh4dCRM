@@ -47,6 +47,7 @@ const OwnerAttendance = () => {
   const [attendance, setAttendance] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [weeklyOffDays, setWeeklyOffDays] = useState(["Sunday"]);
 
   // Fetch company attendance report
   const fetchAttendance = async (date = selectedDate) => {
@@ -59,6 +60,7 @@ const OwnerAttendance = () => {
       });
 
       setAttendance(response.data.attendance || []);
+      setWeeklyOffDays(response.data.weeklyOffDays ?? ["Sunday"]);
     } catch (err) {
       setError(
         err.response?.data?.message || "Unable to load attendance report.",
@@ -88,6 +90,24 @@ const OwnerAttendance = () => {
   const halfDayCount = attendance.filter(
     (record) => record.status === "half_day",
   ).length;
+
+  // Check whether selected date is a weekly off
+  const dayNames = [
+    "Sunday",
+    "Monday",
+    "Tuesday",
+    "Wednesday",
+    "Thursday",
+    "Friday",
+    "Saturday",
+  ];
+
+  const selectedDay = selectedDate
+    ? dayNames[new Date(`${selectedDate}T00:00:00Z`).getUTCDay()]
+    : null;
+
+  const isSelectedDateWeeklyOff =
+    selectedDay && weeklyOffDays.includes(selectedDay);
 
   return (
     <div className="space-y-6">
@@ -152,6 +172,24 @@ const OwnerAttendance = () => {
         </div>
       </div>
 
+      {/* Weekly Off message */}
+      {isSelectedDateWeeklyOff && (
+        <div className="rounded-xl border border-blue-200 bg-blue-50 p-5">
+          <div className="flex items-center gap-3">
+            <CalendarDays className="text-blue-600" size={24} />
+
+            <div>
+              <h3 className="font-semibold text-blue-800">Weekly Off</h3>
+
+              <p className="mt-1 text-sm text-blue-700">
+                {selectedDay} is a weekly holiday for your company. Employees
+                are not required to mark attendance.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Error message */}
       {error && (
         <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">
@@ -208,7 +246,9 @@ const OwnerAttendance = () => {
           </div>
         ) : attendance.length === 0 ? (
           <div className="p-8 text-center text-gray-500">
-            No attendance records found for this date.
+            {isSelectedDateWeeklyOff
+              ? "Weekly Off — No attendance is required today."
+              : "No attendance records found for this date."}{" "}
           </div>
         ) : (
           <div className="overflow-x-auto">
@@ -293,6 +333,7 @@ const StatusBadge = ({ status }) => {
     late: "bg-yellow-100 text-yellow-700",
     half_day: "bg-orange-100 text-orange-700",
     absent: "bg-red-100 text-red-700",
+    weekly_off: "bg-blue-100 text-blue-700",
   };
 
   const normalizedStatus = status || "unknown";
@@ -303,7 +344,9 @@ const StatusBadge = ({ status }) => {
         styles[normalizedStatus] || "bg-gray-100 text-gray-600"
       }`}
     >
-      {normalizedStatus.replace("_", " ")}
+      {normalizedStatus === "weekly_off"
+        ? "Weekly Off"
+        : normalizedStatus.replace("_", " ")}
     </span>
   );
 };

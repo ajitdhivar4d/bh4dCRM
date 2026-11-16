@@ -21,6 +21,7 @@ import AdminLayout from "./layouts/AdminLayout";
 import Customers from "./pages/customer/Customers";
 import Enquiries from "./pages/enquiries/Enquiries";
 import FollowUps from "./pages/followups/FollowUps";
+import MonthlyAttendanceReport from "./pages/owner/MonthlyAttendanceReport";
 
 function App() {
   return (
@@ -48,6 +49,10 @@ function App() {
           <Route path="employees" element={<Employees />} />
           <Route path="invite-employee" element={<InviteEmployee />} />
           <Route path="attendance" element={<OwnerAttendance />} />
+          <Route
+            path="monthly-attendance"
+            element={<MonthlyAttendanceReport />}
+          />
           <Route path="settings" element={<AttendanceSettings />} />
           <Route path="customers" element={<Customers />} />
           <Route path="enquiries" element={<Enquiries />} />

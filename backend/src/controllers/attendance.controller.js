@@ -2,12 +2,29 @@ import Attendance from "../models/Attendance.js";
 import User from "../models/User.js";
 import Company from "../models/Company.js";
 import { validateAttendanceLocation } from "../utils/validateAttendanceLocation.js";
+import Leave from "../models/Leave.js";
 
 // Get today's date in India
 const getTodayDate = () =>
   new Intl.DateTimeFormat("en-CA", {
     timeZone: "Asia/Kolkata",
   }).format(new Date());
+
+// Get today's weekday in India
+const getTodayDayInIndia = (date = new Date()) =>
+  new Intl.DateTimeFormat("en-US", {
+    timeZone: "Asia/Kolkata",
+    weekday: "long",
+  }).format(date);
+
+// Check whether today is a company weekly off
+const isWeeklyOff = (company, date = new Date()) => {
+  const weeklyOffDays = company.attendanceSettings?.weeklyOffDays ?? ["Sunday"];
+
+  const todayDay = getTodayDayInIndia(date);
+
+  return weeklyOffDays.includes(todayDay);
+};
 
 // Get current time in India as minutes from midnight
 const getMinutesInIndia = (date) => {
@@ -128,6 +145,13 @@ export const checkIn = async (req, res) => {
         message: "Company is not active",
       });
     }
+    // Prevent check-in on weekly off days
+    if (isWeeklyOff(company)) {
+      return res.status(400).json({
+        success: false,
+        message: "Today is a weekly off. Attendance is not required.",
+      });
+    }
 
     // Prevent check-in after office closing time
     const officeEndTime = company.attendanceSettings?.officeEndTime || "18:00";
@@ -241,8 +265,6 @@ export const checkOut = async (req, res) => {
         message: "Company is not active",
       });
     }
-
-    
 
     const location = verifyOfficeLocation(company, latitude, longitude);
 
@@ -374,15 +396,234 @@ export const getCompanyAttendance = async (req, res) => {
       .populate("employee", "name email")
       .sort({ date: -1 });
 
+    const company = await Company.findById(req.user.company).select(
+      "attendanceSettings.weeklyOffDays",
+    );
+
     return res.status(200).json({
       success: true,
       count: attendance.length,
       attendance,
+      weeklyOffDays: company?.attendanceSettings?.weeklyOffDays ?? ["Sunday"],
     });
   } catch (error) {
     return res.status(500).json({
       success: false,
       message: error.message,
+    });
+  }
+};
+
+// GET: Company Owner Monthly Attendance Report
+export const getMonthlyAttendanceReport = async (req, res) => {
+  try {
+    if (req.user.role !== "company_owner") {
+      return res.status(403).json({
+        success: false,
+        message: "Company owner access only",
+      });
+    }
+
+    const { month } = req.query;
+
+    // Validate YYYY-MM
+    if (!month || !/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) {
+      return res.status(400).json({
+        success: false,
+        message: "Please provide month in YYYY-MM format.",
+      });
+    }
+
+    const [year, monthNumber] = month.split("-").map(Number);
+
+    const daysInMonth = new Date(Date.UTC(year, monthNumber, 0)).getUTCDate();
+
+    const today = new Intl.DateTimeFormat("en-CA", {
+      timeZone: "Asia/Kolkata",
+    }).format(new Date());
+
+    // Do not count future dates
+    const lastDate = `${month}-${String(daysInMonth).padStart(2, "0")}`;
+    const reportEndDate = lastDate < today ? lastDate : today;
+
+    // If selected month is in the future
+    if (`${month}-01` > today) {
+      return res.status(200).json({
+        success: true,
+        month,
+        employees: [],
+      });
+    }
+
+    const company = await Company.findOne({
+      _id: req.user.company,
+      owner: req.user._id,
+    });
+
+    if (!company) {
+      return res.status(404).json({
+        success: false,
+        message: "Company not found.",
+      });
+    }
+
+    const currentMinutes = getMinutesInIndia(new Date());
+
+    const officeEndMinutes = parseTimeToMinutes(
+      company.attendanceSettings?.officeEndTime || "18:00",
+    );
+
+    const weeklyOffDays = company.attendanceSettings?.weeklyOffDays ?? [
+      "Sunday",
+    ];
+
+    // Get active and inactive employees for historical reporting
+    const employees = await User.find({
+      company: company._id,
+      role: "employee",
+    }).select("name email status");
+
+    // Get attendance records for selected month
+    const attendanceRecords = await Attendance.find({
+      company: company._id,
+      date: {
+        $gte: `${month}-01`,
+        $lte: reportEndDate,
+      },
+    });
+
+    // Get approved leaves overlapping selected month
+    const monthStart = new Date(`${month}-01T00:00:00.000Z`);
+    const monthEnd = new Date(Date.UTC(year, monthNumber, 0, 23, 59, 59, 999));
+
+    const approvedLeaves = await Leave.find({
+      company: company._id,
+      status: "approved",
+      startDate: { $lte: monthEnd },
+      endDate: { $gte: monthStart },
+    }).select("employee startDate endDate");
+
+    const attendanceMap = new Map();
+
+    attendanceRecords.forEach((record) => {
+      attendanceMap.set(`${record.employee.toString()}_${record.date}`, record);
+    });
+
+    const leaveMap = new Map();
+
+    approvedLeaves.forEach((leave) => {
+      const current = new Date(
+        Math.max(leave.startDate.getTime(), monthStart.getTime()),
+      );
+
+      const end = new Date(
+        Math.min(leave.endDate.getTime(), monthEnd.getTime()),
+      );
+
+      while (current <= end) {
+        const date = current.toISOString().slice(0, 10);
+
+        leaveMap.set(`${leave.employee.toString()}_${date}`, true);
+
+        current.setUTCDate(current.getUTCDate() + 1);
+      }
+    });
+
+    const reportEmployees = employees.map((employee) => {
+      const summary = {
+        present: 0,
+        late: 0,
+        halfDay: 0,
+        absent: 0,
+        weeklyOff: 0,
+        leave: 0,
+        notMarked: 0,
+      };
+
+      const dailyRecords = [];
+
+      for (let day = 1; day <= daysInMonth; day++) {
+        const date = `${month}-${String(day).padStart(2, "0")}`;
+
+        // Skip future dates
+        if (date > reportEndDate) break;
+
+        const weekday = new Intl.DateTimeFormat("en-US", {
+          timeZone: "UTC",
+          weekday: "long",
+        }).format(new Date(`${date}T00:00:00.000Z`));
+
+        const key = `${employee._id.toString()}_${date}`;
+
+        const attendance = attendanceMap.get(key);
+        const isLeave = leaveMap.has(key);
+        const isWeeklyOff = weeklyOffDays.includes(weekday);
+
+        let status;
+
+        if (isWeeklyOff) {
+          status = "weekly_off";
+          summary.weeklyOff++;
+        } else if (isLeave) {
+          status = "leave";
+          summary.leave++;
+        } else if (attendance) {
+          status = attendance.status;
+
+          if (attendance.status === "present" || attendance.status === "late") {
+            summary.present++;
+          } else if (attendance.status === "half_day") {
+            summary.halfDay++;
+          } else if (attendance.status === "absent") {
+            summary.absent++;
+          }
+
+          // Count late arrivals independently of attendance status
+          if (attendance.isLate) {
+            summary.late++;
+          }
+        } else if (date === today && currentMinutes < officeEndMinutes) {
+          status = "not_marked";
+          summary.notMarked++;
+        } else {
+          status = "absent";
+          summary.absent++;
+        }
+
+        dailyRecords.push({
+          date,
+          weekday,
+          status,
+          isLate: attendance?.isLate ?? false,
+          lateMinutes: attendance?.lateMinutes ?? 0,
+          totalWorkingMinutes: attendance?.totalWorkingMinutes ?? 0,
+        });
+      }
+
+      return {
+        employee: {
+          _id: employee._id,
+          name: employee.name,
+          email: employee.email,
+          status: employee.status,
+        },
+        summary,
+        dailyRecords,
+      };
+    });
+
+    return res.status(200).json({
+      success: true,
+      month,
+      weeklyOffDays,
+      employees: reportEmployees,
+    });
+  } catch (error) {
+    console.error("Monthly attendance report error:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to generate monthly attendance report.",
     });
   }
 };

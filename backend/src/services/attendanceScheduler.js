@@ -4,10 +4,20 @@ import Attendance from "../models/Attendance.js";
 import User from "../models/User.js";
 import Company from "../models/Company.js";
 
+import Leave from "../models/Leave.js";
+
 // Current date in India: YYYY-MM-DD
 const getTodayDate = () => {
   return new Intl.DateTimeFormat("en-CA", {
     timeZone: "Asia/Kolkata",
+  }).format(new Date());
+};
+
+// Current weekday in India
+const getTodayDayInIndia = () => {
+  return new Intl.DateTimeFormat("en-US", {
+    timeZone: "Asia/Kolkata",
+    weekday: "long",
   }).format(new Date());
 };
 
@@ -21,7 +31,6 @@ const getCurrentMinutes = () => {
   }).formatToParts(new Date());
 
   const hours = Number(parts.find((p) => p.type === "hour").value);
-
   const minutes = Number(parts.find((p) => p.type === "minute").value);
 
   return hours * 60 + minutes;
@@ -37,6 +46,7 @@ const parseTimeToMinutes = (time) => {
 // Mark employees absent
 export const markDailyAbsences = async () => {
   const date = getTodayDate();
+  const todayDay = getTodayDayInIndia();
   const currentMinutes = getCurrentMinutes();
 
   // Find active companies
@@ -48,6 +58,16 @@ export const markDailyAbsences = async () => {
 
   for (const company of companies) {
     const settings = company.attendanceSettings;
+
+    // Skip company weekly off days
+    const weeklyOffDays = settings?.weeklyOffDays ?? ["Sunday"];
+
+    if (weeklyOffDays.includes(todayDay)) {
+      console.log(
+        `[Attendance] Skipping ${company._id}: ${todayDay} is a weekly off`,
+      );
+      continue;
+    }
 
     // Company office closing time
     const officeEndTime = settings?.officeEndTime || "18:00";
@@ -66,12 +86,39 @@ export const markDailyAbsences = async () => {
       status: "active",
     }).select("_id");
 
+    // Get today's date boundaries (India date stored as UTC date)
+    const todayStart = new Date(`${date}T00:00:00.000Z`);
+    const todayEnd = new Date(`${date}T23:59:59.999Z`);
+
+    // Find employees who have approved leave today
+    const approvedLeaves = await Leave.find({
+      company: company._id,
+      status: "approved",
+      startDate: { $lte: todayEnd },
+      endDate: { $gte: todayStart },
+    }).select("employee");
+
+    const employeesOnLeave = new Set(
+      approvedLeaves.map((leave) => leave.employee.toString()),
+    );
+
+    // Exclude employees who are on approved leave
+    const employeesToMarkAbsent = employees.filter(
+      (employee) => !employeesOnLeave.has(employee._id.toString()),
+    );
+
     if (employees.length === 0) {
       continue;
     }
+    if (employeesToMarkAbsent.length === 0) {
+      console.log(
+        `[Attendance] All employees are present or on approved leave for ${date}`,
+      );
+      continue;
+    }
 
-    // Create absent records only if today's record does not exist.
-    const operations = employees.map((employee) => ({
+    // Create absent records only if today's record does not exist
+    const operations = employeesToMarkAbsent.map((employee) => ({
       updateOne: {
         filter: {
           company: company._id,
@@ -94,7 +141,9 @@ export const markDailyAbsences = async () => {
       },
     }));
 
-    const result = await Attendance.bulkWrite(operations, { ordered: false });
+    const result = await Attendance.bulkWrite(operations, {
+      ordered: false,
+    });
 
     totalMarked += result.upsertedCount;
   }

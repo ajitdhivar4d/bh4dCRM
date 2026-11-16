@@ -30,7 +30,7 @@
 //Employee login 2
 // {
 //   "employeeName": "Mohit Sharma",
-//   "email": "mohit@example.com"
+//   "email": "mohit@gmail.com"
 //    "password":"Mohit7740"
 // }
 

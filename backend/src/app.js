@@ -11,6 +11,7 @@ import attendanceRoutes from "./routes/attendance.route.js";
 import customerRoutes from "./routes/customer.route.js";
 import enquiryRoutes from "./routes/enquiry.route.js";
 import followUpRoutes from "./routes/followUp.route.js";
+import leaveRoutes from "./routes/leaveRoutes.js";
 
 const app = express();
 
@@ -33,6 +34,7 @@ app.use("/api/attendance", attendanceRoutes);
 app.use("/api/customers", customerRoutes);
 app.use("/api/enquiries", enquiryRoutes);
 app.use("/api/follow-ups", followUpRoutes);
+app.use("/api/leave", leaveRoutes);
 
 // Uploaded enquiry images
 app.use("/uploads", express.static("uploads"));
